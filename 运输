@@ -1,0 +1,96 @@
+import plotly.plotly as py
+from plotly import tools
+import plotly.graph_objs as go
+import pandas as pd
+tools.set_credentials_file(username='ASCCC', api_key='OXNmwdP0gXtRqj2j6nB3')
+import numpy as np
+import requests
+def geocodeG(address):
+    par = {'address': address, 'key': 'cb649a25c1f81c1451adbeca73623251'}
+    base = 'http://restapi.amap.com/v3/geocode/geo'
+    response = requests.get(base, par)
+    answer = response.json()
+    GPS=answer['geocodes'][0]['location'].split(",")
+    return GPS[0],GPS[1]
+a=pd.read_excel('C:/Users/17733/Desktop/dizhi111.xlsx')
+b=a[a['地址'].notna()]
+c=list(b['地址'].values)
+d=list(b['简称'].values)
+lons,lats=[],[]
+for i in c:
+    x,y=geocodeG(i)
+    lons.append(x)
+    lats.append(y)
+f=pd.read_csv('C:/Users/17733/Desktop/调货1.csv', encoding = 'gb2312',index_col=0)
+out=f['调出方'].values
+ins=f['调入方'].values
+num=f['金额'].values
+out1,ins1,num1=[],[],[]
+l=len(out)
+for i in range(l):
+    if out[i] in d and ins[i] in d:
+        out1.append(out[i])
+        ins1.append(ins[i])
+        num1.append(num[i])
+p=list(zip(out1,ins1))
+s=dict()
+for i in range(len(p)):
+    if p[i] not in s:
+        s[p[i]]=num1[i]
+    else:
+        s[p[i]]+=num1[i]
+xlon,ylon,xlat,ylat=[],[],[],[]
+num2=[]
+for i in s:
+    xlon.append(lons[d.index(i[0])])
+    xlat.append(lats[d.index(i[0])])
+    ylon.append(lons[d.index(i[1])])
+    ylat.append(lats[d.index(i[1])])
+    num2.append(s[i])
+lonlat = [ dict(
+        type = 'scattergeo',
+        locationmode = 'country names',
+        lon = lons,
+        lat = lats,
+        hoverinfo = 'text',
+        text = d,
+        mode = 'markers',
+        marker = dict( 
+            size=2, 
+            color='rgb(255, 0, 0)',
+            line = dict(
+                width=3,
+                color='rgba(68, 68, 68, 0)'
+            )
+        ))]       
+subway_paths = []
+for i in range(len(num2)):
+    subway_paths.append(
+        dict(
+            type = 'scattergeo',
+            locationmode = 'country names',
+            lon = [xlon[i], ylon[i]],
+            lat = [xlat[i], ylat[i]],
+            mode = 'lines',
+            line = dict(
+                width = 1,
+                color = 'red',
+            ),
+            opacity = float(num2[i])/float(num2[i].max()),
+        )
+    )
+    
+layout = dict(
+        title = 'transform picture',
+        showlegend = False, 
+        geo = dict(
+            scope='asia',
+            #projection=dict( type='azimuthal equal area' ),
+            showland = True,
+            landcolor = 'rgb(243, 243, 243)',
+            countrycolor = 'rgb(204, 204, 204)',
+        ),
+    )
+    
+fig = dict( data=subway_paths + lonlat, layout=layout )
+py.plot(fig,filename='transform path')
